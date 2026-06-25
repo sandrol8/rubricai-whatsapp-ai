@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rubric AI — Painel Admin WhatsApp</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0f0f1a; color: #e2e8f0; min-height: 100vh; }
+    header { background: linear-gradient(135deg, #7C3AED, #5B21B6); padding: 20px 32px; display: flex; align-items: center; gap: 16px; box-shadow: 0 4px 20px rgba(124,58,237,0.4); }
+    header h1 { font-size: 1.4rem; font-weight: 700; }
+    header span { background: #FBBF24; color: #000; font-size: 0.7rem; padding: 2px 8px; border-radius: 20px; font-weight: 700; }
+    .container { max-width: 960px; margin: 0 auto; padding: 32px 24px; }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px; }
+    .stat-card { background: #1e1e2e; border: 1px solid #2d2d44; border-radius: 12px; padding: 20px; text-align: center; }
+    .stat-card .number { font-size: 2rem; font-weight: 800; color: #7C3AED; }
+    .stat-card .label { font-size: 0.8rem; color: #94a3b8; margin-top: 4px; }
+    .card { background: #1e1e2e; border: 1px solid #2d2d44; border-radius: 12px; padding: 24px; margin-bottom: 24px; }
+    .card h2 { font-size: 1rem; font-weight: 600; margin-bottom: 16px; color: #a78bfa; }
+    textarea { width: 100%; min-height: 280px; background: #0f0f1a; border: 1px solid #3d3d5c; border-radius: 8px; color: #e2e8f0; padding: 14px; font-size: 0.9rem; line-height: 1.6; resize: vertical; outline: none; }
+    textarea:focus { border-color: #7C3AED; }
+    .btn { padding: 10px 24px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; font-size: 0.9rem; }
+    .btn-primary { background: #7C3AED; color: white; }
+    .btn-test { background: #FBBF24; color: #000; margin-left: 8px; }
+    .actions { margin-top: 16px; display: flex; align-items: center; gap: 8px; }
+    .msg { font-size: 0.85rem; padding: 8px 12px; border-radius: 6px; }
+    .msg.success { background: #064e3b; color: #6ee7b7; }
+    .msg.error { background: #7f1d1d; color: #fca5a5; }
+    .test-area { display: flex; gap: 8px; margin-top: 8px; }
+    .test-area input { flex: 1; background: #0f0f1a; border: 1px solid #3d3d5c; border-radius: 8px; color: #e2e8f0; padding: 10px 14px; font-size: 0.9rem; outline: none; }
+    .test-response { background: #0f0f1a; border: 1px solid #3d3d5c; border-radius: 8px; padding: 14px; margin-top: 12px; font-size: 0.9rem; line-height: 1.6; white-space: pre-wrap; display: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🤖 Rubric AI <span>WhatsApp Admin</span></h1>
+  </header>
+  <div class="container">
+    <div class="stats">
+      <div class="stat-card"><div class="number" id="stat-conversations">—</div><div class="label">Conversas totais</div></div>
+      <div class="stat-card"><div class="number" id="stat-messages">—</div><div class="label">Mensagens totais</div></div>
+      <div class="stat-card"><div class="number" id="stat-today">—</div><div class="label">Mensagens hoje</div></div>
+    </div>
+    <div class="card">
+      <h2>✏️ Prompt do Sistema (comportamento da IA)</h2>
+      <textarea id="prompt-editor" placeholder="Carregando prompt..."></textarea>
+      <div class="actions">
+        <button class="btn btn-primary" onclick="savePrompt()">💾 Salvar Prompt</button>
+        <span id="save-msg" class="msg"></span>
+      </div>
+    </div>
+    <div class="card">
+      <h2>🧪 Testar a IA</h2>
+      <p style="font-size:0.85rem;color:#94a3b8;margin-bottom:12px">Simule uma conversa sem usar o WhatsApp</p>
+      <div class="test-area">
+        <input type="text" id="test-input" placeholder="Digite uma mensagem de teste..." onkeydown="if(event.key==='Enter')testAI()">
+        <button class="btn btn-test" onclick="testAI()">▶ Testar</button>
+      </div>
+      <div class="test-response" id="test-response"></div>
+    </div>
+  </div>
+  <script>
+    async function loadStats() {
+      try {
+        const r = await fetch('/webhook/api/stats');
+        const d = await r.json();
+        document.getElementById('stat-conversations').textContent = d.totalConversations ?? '—';
+        document.getElementById('stat-messages').textContent = d.totalMessages ?? '—';
+        document.getElementById('stat-today').textContent = d.messagesToday ?? '—';
+      } catch(e) {}
+    }
+    async function loadPrompt() {
+      try {
+        const r = await fetch('/webhook/api/prompt');
+        const d = await r.json();
+        document.getElementById('prompt-editor').value = d.prompt;
+      } catch(e) {}
+    }
+    async function savePrompt() {
+      const prompt = document.getElementById('prompt-editor').value;
+      const msg = document.getElementById('save-msg');
+      try {
+        const r = await fetch('/webhook/api/prompt', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt })
+        });
+        msg.className = 'msg success';
+        msg.textContent = '✅ Salvo!';
+      } catch(e) {
+        msg.className = 'msg error';
+        msg.textContent = '❌ Erro ao salvar';
+      }
+      setTimeout(() => msg.textContent = '', 3000);
+    }
+    async function testAI() {
+      const input = document.getElementById('test-input').value.trim();
+      if (!input) return;
+      const resp = document.getElementById('test-response');
+      resp.style.display = 'block';
+      resp.textContent = '⏳ Processando...';
+      try {
+        const prompt = document.getElementById('prompt-editor').value;
+        const r = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 500, system: prompt, messages: [{ role: 'user', content: input }] })
+        });
+        const d = await r.json();
+        resp.textContent = d.content?.[0]?.text || JSON.stringify(d);
+      } catch(e) {
+        resp.textContent = '❌ Erro: ' + e.message;
+      }
+    }
+    loadStats();
+    loadPrompt();
+    setInterval(loadStats, 30000);
+  </script>
+</body>
+</html>
