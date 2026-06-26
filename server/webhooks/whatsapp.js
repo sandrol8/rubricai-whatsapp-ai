@@ -62,5 +62,25 @@ router.get('/api/stats', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+router.post('/api/test', async (req, res) => {
+  try {
+    const { message, prompt } = req.body;
+    const systemPrompt = prompt || await getSystemPrompt();
+    const { OpenAI } = require('openai');
+    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const completion = await client.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: message }
+      ],
+      max_tokens: 500
+    });
+    const response = completion.choices[0].message.content;
+    res.json({ response });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 module.exports = router;
